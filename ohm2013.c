@@ -1,18 +1,3 @@
-/**************************************************************************
- *
- * Copyright 2008 Tungsten Graphics, Inc., Cedar Park, Texas.
- * All Rights Reserved.
- *
- **************************************************************************/
-
-/*
- * Draw a triangle with X/EGL and OpenGL ES 2.x
- */
-
-#define USE_FULL_GL 0
-
-
-
 #include <assert.h>
 #include <math.h>
 #include <stdlib.h>
@@ -21,21 +6,15 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
-#if USE_FULL_GL
-#include "gl_wrap.h"  /* use full OpenGL */
-#else
 #include <GLES2/gl2.h>  /* use OpenGL ES 2.x */
-#endif
 #include <EGL/egl.h>
 
-
 #define FLOAT_TO_FIXED(X)   ((X) * 65535.0)
-
-
 
 static GLfloat view_rotx = 0.0, view_roty = 0.0;
 
 static GLint u_matrix = -1;
+
 static GLint attr_pos = 0, attr_color = 1;
 
 
@@ -245,16 +224,10 @@ make_x_window(Display *x_dpy, EGLDisplay egl_dpy,
       EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
       EGL_NONE
    };
-#if USE_FULL_GL
-   static const EGLint ctx_attribs[] = {
-       EGL_NONE
-   };
-#else
    static const EGLint ctx_attribs[] = {
       EGL_CONTEXT_CLIENT_VERSION, 2,
       EGL_NONE
    };
-#endif
 
    int scrnum;
    XSetWindowAttributes attr;
@@ -316,11 +289,7 @@ make_x_window(Display *x_dpy, EGLDisplay egl_dpy,
                               None, (char **)NULL, 0, &sizehints);
    }
 
-#if USE_FULL_GL /* XXX fix this when eglBindAPI() works */
-   eglBindAPI(EGL_OPENGL_API);
-#else
    eglBindAPI(EGL_OPENGL_ES_API);
-#endif
 
    ctx = eglCreateContext(egl_dpy, config, EGL_NO_CONTEXT, ctx_attribs );
    if (!ctx) {
@@ -328,14 +297,12 @@ make_x_window(Display *x_dpy, EGLDisplay egl_dpy,
       exit(1);
    }
 
-#if !USE_FULL_GL
    /* test eglQueryContext() */
    {
       EGLint val;
       eglQueryContext(egl_dpy, ctx, EGL_CONTEXT_CLIENT_VERSION, &val);
       assert(val == 2);
    }
-#endif
 
    *surfRet = eglCreateWindowSurface(egl_dpy, config, win, NULL);
    if (!*surfRet) {
