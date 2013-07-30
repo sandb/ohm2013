@@ -11,7 +11,7 @@
 
 #define FLOAT_TO_FIXED(X)   ((X) * 65535.0)
 
-static GLfloat view_rotx = 0.0, view_roty = 0.0, view_rotz = 0.0;
+static GLfloat view_rotx = 0.0, view_roty = 0.0, view_rotz = 0.0, view_transz = 0.0, view_scale = 0.5;
 
 static GLint u_matrix = -1;
 
@@ -76,6 +76,18 @@ make_z_rot_matrix(GLfloat angle, GLfloat *m)
 }
 
 static void
+make_translation_matrix(GLfloat x, GLfloat y, GLfloat z, GLfloat *m)
+{
+   int i;
+   for (i = 0; i < 16; i++)
+      m[i] = 0.0;
+   m[0] = m[5] = m[10] = m[15] = 1.0;
+   m[12] = x;
+   m[13] = y;
+   m[14] = z;
+}
+
+static void
 make_scale_matrix(GLfloat xs, GLfloat ys, GLfloat zs, GLfloat *m)
 {
    int i;
@@ -109,6 +121,16 @@ mul_matrix(GLfloat *prod, const GLfloat *a, const GLfloat *b)
 #undef PROD
 }
 
+void
+print_matrix(GLfloat *m) {
+    printf("{\n");
+    int i = 0;
+    for (i = 0; i < 4; i++) {
+        printf(" [%f,%f,%f,%f]\n", m[i*4+0], m[i*4+1], m[i*4+2], m[i*4+3]);
+    }
+    printf("}\n");
+}
+
 
 static void
 draw(void)
@@ -131,21 +153,23 @@ draw(void)
       { 1, 0, 0 },
       { 1, 0, 0 }
    };
-   GLfloat mat[16], rotz[16], roty[16], rotx[16], scale[16];
+   GLfloat mat[16], trans[16], rotz[16], roty[16], rotx[16], scale[16];
 
    /* Set modelview/projection matrix */
    make_unity_matrix(mat);
+   make_translation_matrix(view_transz, 0.0, 0.0,  trans);
    make_x_rot_matrix(view_rotx, rotx);
    make_y_rot_matrix(view_roty, roty);
    make_z_rot_matrix(view_rotz, rotz);
-   make_scale_matrix(0.5, 0.5, 0.5, scale);
+   make_scale_matrix(view_scale, view_scale, view_scale, scale);
 
-   // mul_matrix(mat, rotz, roty);
-   mul_matrix(mat, mat, rotx);
-   mul_matrix(mat, mat, roty);
-   mul_matrix(mat, mat, rotz);
-   mul_matrix(mat, mat, scale);
-
+   mul_matrix(mat, rotx, mat);
+   mul_matrix(mat, roty, mat);
+   mul_matrix(mat, rotz, mat);
+   mul_matrix(mat, scale, mat);
+   mul_matrix(mat, trans, mat);
+   print_matrix(mat);
+   
    glUniformMatrix4fv(u_matrix, 1, GL_FALSE, mat);
 
    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -157,7 +181,7 @@ draw(void)
       glEnableVertexAttribArray(attr_pos);
       glEnableVertexAttribArray(attr_color);
 
-      glDrawArrays(GL_TRIANGLE_STRIP, 0, 7);
+      glDrawArrays(GL_TRIANGLE_STRIP, 0, 6);
 
       glDisableVertexAttribArray(attr_pos);
       glDisableVertexAttribArray(attr_color);
@@ -187,7 +211,9 @@ create_shaders(void)
       "attribute vec4 color;\n"
       "varying vec4 v_color;\n"
       "void main() {\n"
-      "   gl_Position = modelviewProjection * pos;\n"
+      "   vec4 p = modelviewProjection * pos;\n"
+      "   gl_Position = p;\n"
+      //"   gl_Position = p / p[3];\n"
       "   v_color = color;\n"
       "}\n";
 
@@ -422,10 +448,22 @@ event_loop(Display *dpy, Window win,
                view_rotx -= 5.0;
             }
             else if (code == XK_Page_Up) {
-               view_rotz -= 5.0;
+               view_rotz += 5.0;
             } 
             else if (code == XK_Page_Down) {
                view_rotz -= 5.0;
+            }
+            else if (code == XK_End) {
+               view_transz -= 0.1;
+            } 
+            else if (code == XK_Home) {
+               view_transz += 0.1;
+            }
+            else if (code == XK_F1) {
+               view_scale /= 2.0;
+            } 
+            else if (code == XK_F2) {
+               view_scale *= 2.0;
             }
             else {
                r = XLookupString(&event.xkey, buffer, sizeof(buffer),
