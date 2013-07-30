@@ -11,12 +11,21 @@
 
 #define FLOAT_TO_FIXED(X)   ((X) * 65535.0)
 
-static GLfloat view_rotx = 0.0, view_roty = 0.0;
+static GLfloat view_rotx = 0.0, view_roty = 0.0, view_rotz = 0.0;
 
 static GLint u_matrix = -1;
 
 static GLint attr_pos = 0, attr_color = 1;
 
+
+void
+make_unity_matrix(GLfloat *m)
+{
+   int i;
+   for (i = 0; i < 16; i++)
+      m[i] = 0.0;
+   m[0] = m[5] = m[10] = m[15] = 1.0;
+}
 
 void
 make_x_rot_matrix(GLfloat angle, GLfloat *m)
@@ -104,23 +113,37 @@ mul_matrix(GLfloat *prod, const GLfloat *a, const GLfloat *b)
 static void
 draw(void)
 {
-   static const GLfloat verts[3][3] = {
-      { -1, -1, 0 },
-      {  1, -1, 0 },
-      {  0,  1, 0 }
+   static const GLfloat verts[7][3] = {
+      {  1, -1,  1 },
+      { -1, -1,  1 },
+      {  1,  1,  1 },
+      { -1,  1,  1 },
+      {  1,  1, -1 },
+      { -1,  1, -1 },
+      {  1, -1, -1 }
    };
-   static const GLfloat colors[3][3] = {
+   static const GLfloat colors[7][3] = {
       { 1, 0, 0 },
       { 0, 1, 0 },
-      { 0, 0, 1 }
+      { 0, 0, 1 },
+      { 1, 0, 0 },
+      { 1, 0, 0 },
+      { 1, 0, 0 },
+      { 1, 0, 0 }
    };
-   GLfloat mat[16], rotz[16], roty[16], scale[16];
+   GLfloat mat[16], rotz[16], roty[16], rotx[16], scale[16];
 
    /* Set modelview/projection matrix */
-   make_z_rot_matrix(view_rotx, rotz);
+   make_unity_matrix(mat);
+   make_x_rot_matrix(view_rotx, rotx);
    make_y_rot_matrix(view_roty, roty);
+   make_z_rot_matrix(view_rotz, rotz);
    make_scale_matrix(0.5, 0.5, 0.5, scale);
-   mul_matrix(mat, rotz, roty);
+
+   // mul_matrix(mat, rotz, roty);
+   mul_matrix(mat, mat, rotx);
+   mul_matrix(mat, mat, roty);
+   mul_matrix(mat, mat, rotz);
    mul_matrix(mat, mat, scale);
 
    glUniformMatrix4fv(u_matrix, 1, GL_FALSE, mat);
@@ -130,10 +153,11 @@ draw(void)
    {
       glVertexAttribPointer(attr_pos, 3, GL_FLOAT, GL_FALSE, 0, verts);
       glVertexAttribPointer(attr_color, 3, GL_FLOAT, GL_FALSE, 0, colors);
+
       glEnableVertexAttribArray(attr_pos);
       glEnableVertexAttribArray(attr_color);
 
-      glDrawArrays(GL_TRIANGLES, 0, 3);
+      glDrawArrays(GL_TRIANGLE_STRIP, 0, 7);
 
       glDisableVertexAttribArray(attr_pos);
       glDisableVertexAttribArray(attr_color);
@@ -396,6 +420,12 @@ event_loop(Display *dpy, Window win,
             }
             else if (code == XK_Down) {
                view_rotx -= 5.0;
+            }
+            else if (code == XK_Page_Up) {
+               view_rotz -= 5.0;
+            } 
+            else if (code == XK_Page_Down) {
+               view_rotz -= 5.0;
             }
             else {
                r = XLookupString(&event.xkey, buffer, sizeof(buffer),
