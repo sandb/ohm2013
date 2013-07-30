@@ -1,5 +1,5 @@
 CC=gcc
-LIBS=-lEGL -lX11 -lm -lGL
+LIBS=-lEGL -lX11 -lm -lGLESv2
 
 all: ohm2013
 
