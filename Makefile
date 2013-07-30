@@ -7,4 +7,4 @@ ohm2013: ohm2013.c
 	$(CC) $(CFLAGS) $(LIBS) ohm2013.c -o ohm2013
 
 clean: 
-	rm ohm2013
+	rm -f ohm2013
