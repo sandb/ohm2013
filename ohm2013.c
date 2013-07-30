@@ -19,6 +19,22 @@ static GLint attr_pos = 0, attr_color = 1;
 
 
 void
+make_x_rot_matrix(GLfloat angle, GLfloat *m)
+{
+   float c = cos(angle * M_PI / 180.0);
+   float s = sin(angle * M_PI / 180.0);
+   int i;
+   for (i = 0; i < 16; i++)
+      m[i] = 0.0;
+   m[0] = m[5] = m[10] = m[15] = 1.0;
+
+   m[5] = c;                
+   m[6] = s;
+   m[9] = -s;
+   m[10] = c;
+}
+
+void
 make_y_rot_matrix(GLfloat angle, GLfloat *m)
 {
    float c = cos(angle * M_PI / 180.0);
@@ -106,7 +122,7 @@ draw(void)
    make_scale_matrix(0.5, 0.5, 0.5, scale);
    mul_matrix(mat, rotz, roty);
    mul_matrix(mat, mat, scale);
-   //mul_matrix(mat, rot, scale);
+
    glUniformMatrix4fv(u_matrix, 1, GL_FALSE, mat);
 
    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
