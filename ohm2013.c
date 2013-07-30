@@ -18,6 +18,22 @@ static GLint u_matrix = -1;
 static GLint attr_pos = 0, attr_color = 1;
 
 
+void
+make_y_rot_matrix(GLfloat angle, GLfloat *m)
+{
+   float c = cos(angle * M_PI / 180.0);
+   float s = sin(angle * M_PI / 180.0);
+   int i;
+   for (i = 0; i < 16; i++)
+      m[i] = 0.0;
+   m[0] = m[5] = m[10] = m[15] = 1.0;
+
+   m[0] = c;                
+   m[2] = -s;
+   m[8] = s;
+   m[10] = c;
+}
+
 static void
 make_z_rot_matrix(GLfloat angle, GLfloat *m)
 {
@@ -72,28 +88,31 @@ mul_matrix(GLfloat *prod, const GLfloat *a, const GLfloat *b)
 static void
 draw(void)
 {
-   static const GLfloat verts[3][2] = {
-      { -1, -1 },
-      {  1, -1 },
-      {  0,  1 }
+   static const GLfloat verts[3][3] = {
+      { -1, -1, 0 },
+      {  1, -1, 0 },
+      {  0,  1, 0 }
    };
    static const GLfloat colors[3][3] = {
       { 1, 0, 0 },
       { 0, 1, 0 },
       { 0, 0, 1 }
    };
-   GLfloat mat[16], rot[16], scale[16];
+   GLfloat mat[16], rotz[16], roty[16], scale[16];
 
    /* Set modelview/projection matrix */
-   make_z_rot_matrix(view_rotx, rot);
+   make_z_rot_matrix(view_rotx, rotz);
+   make_y_rot_matrix(view_roty, roty);
    make_scale_matrix(0.5, 0.5, 0.5, scale);
-   mul_matrix(mat, rot, scale);
+   mul_matrix(mat, rotz, roty);
+   mul_matrix(mat, mat, scale);
+   //mul_matrix(mat, rot, scale);
    glUniformMatrix4fv(u_matrix, 1, GL_FALSE, mat);
 
    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
    {
-      glVertexAttribPointer(attr_pos, 2, GL_FLOAT, GL_FALSE, 0, verts);
+      glVertexAttribPointer(attr_pos, 3, GL_FLOAT, GL_FALSE, 0, verts);
       glVertexAttribPointer(attr_color, 3, GL_FLOAT, GL_FALSE, 0, colors);
       glEnableVertexAttribArray(attr_pos);
       glEnableVertexAttribArray(attr_color);
