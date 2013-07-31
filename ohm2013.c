@@ -11,7 +11,7 @@
 
 #define FLOAT_TO_FIXED(X)   ((X) * 65535.0)
 
-static GLfloat view_rotx = 0.0, view_roty = 0.0, view_rotz = 0.0, view_transz = 0.0, view_scale = 0.5;
+static GLfloat view_rotx = 0.0, view_roty = 0.0, view_rotz = 0.0, view_transz = 2.0, view_scale = 1.0;
 
 static GLint u_matrix = -1;
 static GLint u_projection = -1;
@@ -102,12 +102,11 @@ make_scale_matrix(GLfloat xs, GLfloat ys, GLfloat zs, GLfloat *m)
 
 
 static void
-make_projection_matrix
-(GLfloat focal_distance, GLfloat *m)
+make_projection_matrix(GLfloat focal_distance, GLfloat *m)
 {
    make_unity_matrix(m);
    m[11] = 1.0/focal_distance;
-   m[15] = 1.0;
+   m[15] = 0.0;
 }
 
 static void
@@ -170,7 +169,7 @@ draw(void)
    make_y_rot_matrix(view_roty, roty);
    make_z_rot_matrix(view_rotz, rotz);
    make_scale_matrix(view_scale, view_scale, view_scale, scale);
-   make_projection_matrix(0.5, projection);
+   make_projection_matrix(0.9, projection);
 
    mul_matrix(mat, rotx, mat);
    mul_matrix(mat, roty, mat);
@@ -213,8 +212,11 @@ create_shaders(void)
 {
    static const char *fragShaderText =
       "varying vec4 v_color;\n"
+      "varying vec4 position;\n"
       "void main() {\n"
-      "   gl_FragColor = v_color;\n"
+      "   if( position.z > 0.5 && position.z/position.w > 0.5 ){\n"
+      "       gl_FragColor = position;\n"
+      "   }else{discard;}\n"
       "}\n";
    static const char *vertShaderText =
       "uniform mat4 modelviewProjection;\n"
@@ -222,14 +224,15 @@ create_shaders(void)
       "attribute vec4 pos;\n"
       "attribute vec4 color;\n"
       "varying vec4 v_color;\n"
+      "varying vec4 position;\n"
       "void main() {\n"
-      //"   vec4 p = modelviewProjection * pos;\n"
-      "   vec4 p = projectionMatrix * modelviewProjection * pos;\n"
-      //"   gl_Position = p;\n"
-      "   gl_Position = p / p.w;\n"
-      "   v_color.r = 1.0 - p.z;\n"
-      "   v_color.g = 1.0 - p.z;\n"
-      "   v_color.b = 1.0 - p.z;\n"
+      "   vec4 p = modelviewProjection * pos;\n"
+      "   vec4 p2 = projectionMatrix * p;\n"
+      "   gl_Position = p2 / p2.w;\n"
+      "   v_color.r = 1.0 - p2.z;\n"
+      "   v_color.g = 1.0 - p2.z;\n"
+      "   v_color.b = 1.0 - p2.z;\n"
+      "   position = p;\n"
       "}\n";
 
    GLuint fragShader, vertShader, program;
