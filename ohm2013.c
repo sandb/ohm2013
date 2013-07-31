@@ -102,11 +102,12 @@ make_scale_matrix(GLfloat xs, GLfloat ys, GLfloat zs, GLfloat *m)
 
 
 static void
-make_projection_matrix(GLfloat focal_distance, GLfloat *m)
+make_projection_matrix
+(GLfloat focal_distance, GLfloat *m)
 {
    make_unity_matrix(m);
-   m[2] = m[6] = 1.0;
-   m[10] = 1.0 / focal_distance;
+   m[11] = 1.0/focal_distance;
+   m[15] = 1.0;
 }
 
 static void
@@ -169,7 +170,7 @@ draw(void)
    make_y_rot_matrix(view_roty, roty);
    make_z_rot_matrix(view_rotz, rotz);
    make_scale_matrix(view_scale, view_scale, view_scale, scale);
-   make_projection_matrix(1.0, projection);
+   make_projection_matrix(0.5, projection);
 
    mul_matrix(mat, rotx, mat);
    mul_matrix(mat, roty, mat);
@@ -222,10 +223,10 @@ create_shaders(void)
       "attribute vec4 color;\n"
       "varying vec4 v_color;\n"
       "void main() {\n"
-      "   vec4 p = modelviewProjection * pos;\n"
-      //"   vec4 p = projectionMatrix * modelviewProjection * pos;\n"
+      //"   vec4 p = modelviewProjection * pos;\n"
+      "   vec4 p = projectionMatrix * modelviewProjection * pos;\n"
       //"   gl_Position = p;\n"
-      "   gl_Position = p / p[3];\n"
+      "   gl_Position = p / p.w;\n"
       "   v_color.r = 1.0 - p.z;\n"
       "   v_color.g = 1.0 - p.z;\n"
       "   v_color.b = 1.0 - p.z;\n"
