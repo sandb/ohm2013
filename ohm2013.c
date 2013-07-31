@@ -14,6 +14,7 @@
 static GLfloat view_rotx = 0.0, view_roty = 0.0, view_rotz = 0.0, view_transz = 0.0, view_scale = 0.5;
 
 static GLint u_matrix = -1;
+static GLint u_projection = -1;
 
 static GLint attr_pos = 0, attr_color = 1;
 
@@ -101,6 +102,14 @@ make_scale_matrix(GLfloat xs, GLfloat ys, GLfloat zs, GLfloat *m)
 
 
 static void
+make_projection_matrix(GLfloat focal_distance, GLfloat *m)
+{
+   make_unity_matrix(m);
+   m[2] = m[6] = 1.0;
+   m[10] = 1.0 / focal_distance;
+}
+
+static void
 mul_matrix(GLfloat *prod, const GLfloat *a, const GLfloat *b)
 {
 #define A(row,col)  a[(col<<2)+row]
@@ -135,33 +144,32 @@ print_matrix(GLfloat *m) {
 static void
 draw(void)
 {
-   static const GLfloat verts[7][3] = {
-      {  1, -1,  1 },
-      { -1, -1,  1 },
-      {  1,  1,  1 },
-      { -1,  1,  1 },
-      {  1,  1, -1 },
-      { -1,  1, -1 },
-      {  1, -1, -1 }
+   #define N 14
+   #define A {  1, -1,  1 }
+   #define B {  1, -1, -1 }
+   #define C { -1, -1,  1 }
+   #define D { -1, -1, -1 }
+   #define E { -1,  1, -1 }
+   #define F {  1,  1, -1 }
+   #define G {  1,  1,  1 }
+   #define H { -1,  1,  1 }
+   #define X { 0.5, 0.5, 0.5 }
+   static const GLfloat verts[14][3] = {
+      A, B, C, D, E, B, F, G, E, H, C, G, A, B
    };
-   static const GLfloat colors[7][3] = {
-      { 1, 0, 0 },
-      { 0, 1, 0 },
-      { 0, 0, 1 },
-      { 1, 0, 0 },
-      { 1, 0, 0 },
-      { 1, 0, 0 },
-      { 1, 0, 0 }
+   static const GLfloat colors[14][3] = {
+      X, X, X, X, X, X, X, X, X, X, X, X, X, X
    };
-   GLfloat mat[16], trans[16], rotz[16], roty[16], rotx[16], scale[16];
+   GLfloat mat[16], trans[16], rotz[16], roty[16], rotx[16], scale[16], projection[16];
 
    /* Set modelview/projection matrix */
    make_unity_matrix(mat);
-   make_translation_matrix(view_transz, 0.0, 0.0,  trans);
+   make_translation_matrix(0.0, 0.0, view_transz, trans);
    make_x_rot_matrix(view_rotx, rotx);
    make_y_rot_matrix(view_roty, roty);
    make_z_rot_matrix(view_rotz, rotz);
    make_scale_matrix(view_scale, view_scale, view_scale, scale);
+   make_projection_matrix(1.0, projection);
 
    mul_matrix(mat, rotx, mat);
    mul_matrix(mat, roty, mat);
@@ -171,7 +179,8 @@ draw(void)
    print_matrix(mat);
    
    glUniformMatrix4fv(u_matrix, 1, GL_FALSE, mat);
-
+   glUniformMatrix4fv(u_projection, 1, GL_FALSE, projection);
+   
    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
    {
@@ -181,11 +190,12 @@ draw(void)
       glEnableVertexAttribArray(attr_pos);
       glEnableVertexAttribArray(attr_color);
 
-      glDrawArrays(GL_TRIANGLE_STRIP, 0, 6);
+      glDrawArrays(GL_TRIANGLE_STRIP, 0, N);
 
       glDisableVertexAttribArray(attr_pos);
       glDisableVertexAttribArray(attr_color);
    }
+   #undef N
 }
 
 
@@ -207,14 +217,18 @@ create_shaders(void)
       "}\n";
    static const char *vertShaderText =
       "uniform mat4 modelviewProjection;\n"
+      "uniform mat4 projectionMatrix;\n"
       "attribute vec4 pos;\n"
       "attribute vec4 color;\n"
       "varying vec4 v_color;\n"
       "void main() {\n"
       "   vec4 p = modelviewProjection * pos;\n"
-      "   gl_Position = p;\n"
-      //"   gl_Position = p / p[3];\n"
-      "   v_color = color;\n"
+      //"   vec4 p = projectionMatrix * modelviewProjection * pos;\n"
+      //"   gl_Position = p;\n"
+      "   gl_Position = p / p[3];\n"
+      "   v_color.r = 1.0 - p.z;\n"
+      "   v_color.g = 1.0 - p.z;\n"
+      "   v_color.b = 1.0 - p.z;\n"
       "}\n";
 
    GLuint fragShader, vertShader, program;
@@ -267,6 +281,7 @@ create_shaders(void)
    }
 
    u_matrix = glGetUniformLocation(program, "modelviewProjection");
+   u_projection = glGetUniformLocation(program, "projectionMatrix");
    printf("Uniform modelviewProjection at %d\n", u_matrix);
    printf("Attrib pos at %d\n", attr_pos);
    printf("Attrib color at %d\n", attr_color);
@@ -574,6 +589,9 @@ main(int argc, char *argv[])
    }
 
    init();
+
+   glEnable(GL_CULL_FACE);
+   glEnable(GL_DEPTH_TEST);
 
    /* Set initial projection/viewing transformation.
     * We can't be sure we'll get a ConfigureNotify event when the window
