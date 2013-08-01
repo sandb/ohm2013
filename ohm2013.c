@@ -584,12 +584,12 @@ event_loop(Display *dpy, Window win,
          }
       }
 
-      if (redraw) {
-         draw();
-         eglSwapBuffers(egl_dpy, egl_surf);
-      } else {
+      if (!redraw) {
          wait_sleep();
       }
+      view_rotx += 0.1;
+      draw();
+      eglSwapBuffers(egl_dpy, egl_surf);
    }
 }
 
