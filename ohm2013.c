@@ -19,98 +19,8 @@ static GLint u_projection = -1;
 static GLint attr_pos = 0, attr_color = 1;
 
 
-void
-make_unity_matrix(GLfloat *m)
-{
-   int i;
-   for (i = 0; i < 16; i++)
-      m[i] = 0.0;
-   m[0] = m[5] = m[10] = m[15] = 1.0;
-}
-
-void
-make_x_rot_matrix(GLfloat angle, GLfloat *m)
-{
-   float c = cos(angle * M_PI / 180.0);
-   float s = sin(angle * M_PI / 180.0);
-   int i;
-   for (i = 0; i < 16; i++)
-      m[i] = 0.0;
-   m[0] = m[5] = m[10] = m[15] = 1.0;
-
-   m[5] = c;                
-   m[6] = s;
-   m[9] = -s;
-   m[10] = c;
-}
-
-void
-make_y_rot_matrix(GLfloat angle, GLfloat *m)
-{
-   float c = cos(angle * M_PI / 180.0);
-   float s = sin(angle * M_PI / 180.0);
-   int i;
-   for (i = 0; i < 16; i++)
-      m[i] = 0.0;
-   m[0] = m[5] = m[10] = m[15] = 1.0;
-
-   m[0] = c;                
-   m[2] = -s;
-   m[8] = s;
-   m[10] = c;
-}
-
 static void
-make_z_rot_matrix(GLfloat angle, GLfloat *m)
-{
-   float c = cos(angle * M_PI / 180.0);
-   float s = sin(angle * M_PI / 180.0);
-   int i;
-   for (i = 0; i < 16; i++)
-      m[i] = 0.0;
-   m[0] = m[5] = m[10] = m[15] = 1.0;
-
-   m[0] = c;
-   m[1] = s;
-   m[4] = -s;
-   m[5] = c;
-}
-
-static void
-make_translation_matrix(GLfloat x, GLfloat y, GLfloat z, GLfloat *m)
-{
-   int i;
-   for (i = 0; i < 16; i++)
-      m[i] = 0.0;
-   m[0] = m[5] = m[10] = m[15] = 1.0;
-   m[12] = x;
-   m[13] = y;
-   m[14] = z;
-}
-
-static void
-make_scale_matrix(GLfloat xs, GLfloat ys, GLfloat zs, GLfloat *m)
-{
-   int i;
-   for (i = 0; i < 16; i++)
-      m[i] = 0.0;
-   m[0] = xs;
-   m[5] = ys;
-   m[10] = zs;
-   m[15] = 1.0;
-}
-
-
-static void
-make_projection_matrix(GLfloat focal_distance, GLfloat *m)
-{
-   make_unity_matrix(m);
-   m[11] = 1.0/focal_distance;
-   m[15] = 0.0;
-}
-
-static void
-mul_matrix(GLfloat *prod, const GLfloat *a, const GLfloat *b)
+matrix_multiply(GLfloat *prod, const GLfloat *a, const GLfloat *b)
 {
 #define A(row,col)  a[(col<<2)+row]
 #define B(row,col)  b[(col<<2)+row]
@@ -128,6 +38,106 @@ mul_matrix(GLfloat *prod, const GLfloat *a, const GLfloat *b)
 #undef A
 #undef B
 #undef PROD
+}
+
+void
+matrix_make_unity(GLfloat *m)
+{
+   int i;
+   for (i = 0; i < 16; i++)
+      m[i] = 0.0;
+   m[0] = m[5] = m[10] = m[15] = 1.0;
+}
+
+void
+matrix_rotate_x(GLfloat angle, GLfloat *mat)
+{
+   GLfloat m[16];
+   float c = cos(angle * M_PI / 180.0);
+   float s = sin(angle * M_PI / 180.0);
+   int i;
+   for (i = 0; i < 16; i++)
+      m[i] = 0.0;
+   m[0] = m[5] = m[10] = m[15] = 1.0;
+
+   m[5] = c;                
+   m[6] = s;
+   m[9] = -s;
+   m[10] = c;
+   matrix_multiply(mat, m, mat);
+}
+
+void
+matrix_rotate_y(GLfloat angle, GLfloat *mat)
+{
+   GLfloat m[16];
+   float c = cos(angle * M_PI / 180.0);
+   float s = sin(angle * M_PI / 180.0);
+   int i;
+   for (i = 0; i < 16; i++)
+      m[i] = 0.0;
+   m[0] = m[5] = m[10] = m[15] = 1.0;
+
+   m[0] = c;                
+   m[2] = -s;
+   m[8] = s;
+   m[10] = c;
+   matrix_multiply(mat, m, mat);
+}
+
+static void
+matrix_rotate_z(GLfloat angle, GLfloat *mat)
+{
+   GLfloat m[16];
+   float c = cos(angle * M_PI / 180.0);
+   float s = sin(angle * M_PI / 180.0);
+   int i;
+   for (i = 0; i < 16; i++)
+      m[i] = 0.0;
+   m[0] = m[5] = m[10] = m[15] = 1.0;
+
+   m[0] = c;
+   m[1] = s;
+   m[4] = -s;
+   m[5] = c;
+   matrix_multiply(mat, m, mat);
+}
+
+static void
+matrix_translate(GLfloat x, GLfloat y, GLfloat z, GLfloat *mat)
+{
+   GLfloat m[16];
+   int i;
+   for (i = 0; i < 16; i++)
+      m[i] = 0.0;
+   m[0] = m[5] = m[10] = m[15] = 1.0;
+   m[12] = x;
+   m[13] = y;
+   m[14] = z;
+   matrix_multiply(mat, m, mat);
+}
+
+static void
+matrix_scale(GLfloat xs, GLfloat ys, GLfloat zs, GLfloat *mat)
+{
+   GLfloat m[16];
+   int i;
+   for (i = 0; i < 16; i++)
+      m[i] = 0.0;
+   m[0] = xs;
+   m[5] = ys;
+   m[10] = zs;
+   m[15] = 1.0;
+   matrix_multiply(mat, m, mat);
+}
+
+
+static void
+matrix_make_projection(GLfloat focal_distance, GLfloat *m)
+{
+   matrix_make_unity(m);
+   m[11] = 1.0/focal_distance;
+   m[15] = 0.0;
 }
 
 void
@@ -174,25 +184,11 @@ draw_cube(GLfloat x, GLfloat y, GLfloat z, GLfloat rx, GLfloat ry, GLfloat rz, G
    GLfloat mat[16];
    memcpy(mat, m, sizeof(mat));
 
-   GLfloat trans[16];
-   make_translation_matrix(x, y, z, trans);
-   mul_matrix(mat, trans, mat);
-
-   GLfloat mrx[16];
-   make_x_rot_matrix(rx, mrx);
-   mul_matrix(mat, mrx, mat);
-
-   GLfloat mry[16];
-   make_y_rot_matrix(ry, mry);
-   mul_matrix(mat, mry, mat);
-
-   GLfloat mrz[16];
-   make_z_rot_matrix(rz, mrz);
-   mul_matrix(mat, mrz, mat);
-
-   GLfloat mrs[16];
-   make_scale_matrix(scale, scale, scale, mrs);
-   mul_matrix(mat, mrs, mat);
+   matrix_translate(x, y, z, mat);
+   matrix_rotate_x(rx, mat);
+   matrix_rotate_y(ry, mat);
+   matrix_rotate_z(rz, mat);
+   matrix_scale(scale, scale, scale, mat);
 
    glUniformMatrix4fv(u_matrix, 1, GL_FALSE, mat);
    
@@ -213,20 +209,14 @@ draw(void)
    GLfloat mat[16], trans[16], rotz[16], roty[16], rotx[16], scale[16], projection[16];
 
    /* Set modelview/projection matrix */
-   make_unity_matrix(mat);
-   make_translation_matrix(0.0, 0.0, view_transz, trans);
-   make_x_rot_matrix(view_rotx, rotx);
-   make_y_rot_matrix(view_roty, roty);
-   make_z_rot_matrix(view_rotz, rotz);
-   make_scale_matrix(view_scale, view_scale, view_scale, scale);
+   matrix_make_unity(mat);
+   matrix_rotate_x(view_rotx, mat);
+   matrix_rotate_y(view_roty, mat);
+   matrix_rotate_z(view_rotz, mat);
+   matrix_translate(0.0, 0.0, view_transz, mat);
+   matrix_scale(view_scale, view_scale, view_scale, mat);
 
-   make_projection_matrix(0.9, projection);
-
-   mul_matrix(mat, rotx, mat);
-   mul_matrix(mat, roty, mat);
-   mul_matrix(mat, rotz, mat);
-   mul_matrix(mat, scale, mat);
-   mul_matrix(mat, trans, mat);
+   matrix_make_projection(0.9, projection);
 
    print_matrix(mat);
 
