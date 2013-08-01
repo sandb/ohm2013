@@ -8,8 +8,12 @@
 #include <X11/keysym.h>
 #include <GLES2/gl2.h>  /* use OpenGL ES 2.x */
 #include <EGL/egl.h>
+#include <time.h>
 
 #define FLOAT_TO_FIXED(X)   ((X) * 65535.0)
+
+#define N_CUBES 50
+#define N_CUBES_FAR 100
 
 static GLfloat view_rotx = 0.0, view_roty = 0.0, view_rotz = 0.0, view_transz = 2.0, view_scale = 1.0;
 
@@ -18,99 +22,17 @@ static GLint u_projection = -1;
 
 static GLint attr_pos = 0, attr_color = 1;
 
-
-void
-make_unity_matrix(GLfloat *m)
-{
-   int i;
-   for (i = 0; i < 16; i++)
-      m[i] = 0.0;
-   m[0] = m[5] = m[10] = m[15] = 1.0;
-}
-
-void
-make_x_rot_matrix(GLfloat angle, GLfloat *m)
-{
-   float c = cos(angle * M_PI / 180.0);
-   float s = sin(angle * M_PI / 180.0);
-   int i;
-   for (i = 0; i < 16; i++)
-      m[i] = 0.0;
-   m[0] = m[5] = m[10] = m[15] = 1.0;
-
-   m[5] = c;                
-   m[6] = s;
-   m[9] = -s;
-   m[10] = c;
-}
-
-void
-make_y_rot_matrix(GLfloat angle, GLfloat *m)
-{
-   float c = cos(angle * M_PI / 180.0);
-   float s = sin(angle * M_PI / 180.0);
-   int i;
-   for (i = 0; i < 16; i++)
-      m[i] = 0.0;
-   m[0] = m[5] = m[10] = m[15] = 1.0;
-
-   m[0] = c;                
-   m[2] = -s;
-   m[8] = s;
-   m[10] = c;
+static void
+wait_sleep() {
+   struct timespec ts;
+   /* Delay for a bit */
+   ts.tv_sec = 0;
+   ts.tv_nsec = 1000;
+   nanosleep (&ts, NULL);
 }
 
 static void
-make_z_rot_matrix(GLfloat angle, GLfloat *m)
-{
-   float c = cos(angle * M_PI / 180.0);
-   float s = sin(angle * M_PI / 180.0);
-   int i;
-   for (i = 0; i < 16; i++)
-      m[i] = 0.0;
-   m[0] = m[5] = m[10] = m[15] = 1.0;
-
-   m[0] = c;
-   m[1] = s;
-   m[4] = -s;
-   m[5] = c;
-}
-
-static void
-make_translation_matrix(GLfloat x, GLfloat y, GLfloat z, GLfloat *m)
-{
-   int i;
-   for (i = 0; i < 16; i++)
-      m[i] = 0.0;
-   m[0] = m[5] = m[10] = m[15] = 1.0;
-   m[12] = x;
-   m[13] = y;
-   m[14] = z;
-}
-
-static void
-make_scale_matrix(GLfloat xs, GLfloat ys, GLfloat zs, GLfloat *m)
-{
-   int i;
-   for (i = 0; i < 16; i++)
-      m[i] = 0.0;
-   m[0] = xs;
-   m[5] = ys;
-   m[10] = zs;
-   m[15] = 1.0;
-}
-
-
-static void
-make_projection_matrix(GLfloat focal_distance, GLfloat *m)
-{
-   make_unity_matrix(m);
-   m[11] = 1.0/focal_distance;
-   m[15] = 0.0;
-}
-
-static void
-mul_matrix(GLfloat *prod, const GLfloat *a, const GLfloat *b)
+matrix_multiply(GLfloat *prod, const GLfloat *a, const GLfloat *b)
 {
 #define A(row,col)  a[(col<<2)+row]
 #define B(row,col)  b[(col<<2)+row]
@@ -128,6 +50,106 @@ mul_matrix(GLfloat *prod, const GLfloat *a, const GLfloat *b)
 #undef A
 #undef B
 #undef PROD
+}
+
+void
+matrix_make_unity(GLfloat *m)
+{
+   int i;
+   for (i = 0; i < 16; i++)
+      m[i] = 0.0;
+   m[0] = m[5] = m[10] = m[15] = 1.0;
+}
+
+void
+matrix_rotate_x(GLfloat angle, GLfloat *mat)
+{
+   GLfloat m[16];
+   float c = cos(angle * M_PI / 180.0);
+   float s = sin(angle * M_PI / 180.0);
+   int i;
+   for (i = 0; i < 16; i++)
+      m[i] = 0.0;
+   m[0] = m[5] = m[10] = m[15] = 1.0;
+
+   m[5] = c;                
+   m[6] = s;
+   m[9] = -s;
+   m[10] = c;
+   matrix_multiply(mat, m, mat);
+}
+
+void
+matrix_rotate_y(GLfloat angle, GLfloat *mat)
+{
+   GLfloat m[16];
+   float c = cos(angle * M_PI / 180.0);
+   float s = sin(angle * M_PI / 180.0);
+   int i;
+   for (i = 0; i < 16; i++)
+      m[i] = 0.0;
+   m[0] = m[5] = m[10] = m[15] = 1.0;
+
+   m[0] = c;                
+   m[2] = -s;
+   m[8] = s;
+   m[10] = c;
+   matrix_multiply(mat, m, mat);
+}
+
+static void
+matrix_rotate_z(GLfloat angle, GLfloat *mat)
+{
+   GLfloat m[16];
+   float c = cos(angle * M_PI / 180.0);
+   float s = sin(angle * M_PI / 180.0);
+   int i;
+   for (i = 0; i < 16; i++)
+      m[i] = 0.0;
+   m[0] = m[5] = m[10] = m[15] = 1.0;
+
+   m[0] = c;
+   m[1] = s;
+   m[4] = -s;
+   m[5] = c;
+   matrix_multiply(mat, m, mat);
+}
+
+static void
+matrix_translate(GLfloat x, GLfloat y, GLfloat z, GLfloat *mat)
+{
+   GLfloat m[16];
+   int i;
+   for (i = 0; i < 16; i++)
+      m[i] = 0.0;
+   m[0] = m[5] = m[10] = m[15] = 1.0;
+   m[12] = x;
+   m[13] = y;
+   m[14] = z;
+   matrix_multiply(mat, m, mat);
+}
+
+static void
+matrix_scale(GLfloat xs, GLfloat ys, GLfloat zs, GLfloat *mat)
+{
+   GLfloat m[16];
+   int i;
+   for (i = 0; i < 16; i++)
+      m[i] = 0.0;
+   m[0] = xs;
+   m[5] = ys;
+   m[10] = zs;
+   m[15] = 1.0;
+   matrix_multiply(mat, m, mat);
+}
+
+
+static void
+matrix_make_projection(GLfloat focal_distance, GLfloat *m)
+{
+   matrix_make_unity(m);
+   m[11] = 1.0/focal_distance;
+   m[15] = 0.0;
 }
 
 void
@@ -181,25 +203,11 @@ draw_cube(GLfloat x, GLfloat y, GLfloat z, GLfloat rx, GLfloat ry, GLfloat rz, G
    GLfloat mat[16];
    memcpy(mat, m, sizeof(mat));
 
-   GLfloat trans[16];
-   make_translation_matrix(x, y, z, trans);
-   mul_matrix(mat, trans, mat);
-
-   GLfloat mrx[16];
-   make_x_rot_matrix(rx, mrx);
-   mul_matrix(mat, mrx, mat);
-
-   GLfloat mry[16];
-   make_y_rot_matrix(ry, mry);
-   mul_matrix(mat, mry, mat);
-
-   GLfloat mrz[16];
-   make_z_rot_matrix(rz, mrz);
-   mul_matrix(mat, mrz, mat);
-
-   GLfloat mrs[16];
-   make_scale_matrix(scale, scale, scale, mrs);
-   mul_matrix(mat, mrs, mat);
+   matrix_scale(scale, scale, scale, mat);
+   matrix_translate(x, y, z, mat);
+   matrix_rotate_z(rz, mat);
+   matrix_rotate_y(ry, mat);
+   matrix_rotate_x(rx, mat);
 
    glUniformMatrix4fv(u_matrix, 1, GL_FALSE, mat);
    
@@ -213,29 +221,83 @@ end_cube()
    glDisableVertexAttribArray(attr_color);
 }
 
+struct cubeset {
+    GLfloat x;
+    GLfloat y;
+    GLfloat z;
+    GLfloat rx;
+    GLfloat ry;
+    GLfloat rz;
+};
+
+struct cube {
+    struct cubeset c, delta;
+};
+
+
+static void 
+init_cube(struct cube *c, GLfloat minz, GLfloat maxz) {
+   GLfloat rm = RAND_MAX;
+   c->c.x = (random() / rm) * (20) - 10.0;
+   c->c.y = (random() / rm) * (20) - 10.0;
+   c->c.z = (random() / rm) * (maxz - minz) + minz;
+   c->c.rx = (random() / rm) * (2 * M_PI);
+   c->c.ry = (random() / rm) * (2 * M_PI);
+   c->c.rz = (random() / rm) * (2 * M_PI);
+   c->delta.x = (random() / rm) * (0.2) - 0.1;
+   c->delta.y = (random() / rm) * (0.2) - 0.1;
+   c->delta.z = -(random() / rm) * (0.5) + 0.5;
+   c->delta.rx = (random() / rm) * (0.2) - 0.1;
+   c->delta.ry = (random() / rm) * (0.2) - 0.1;
+   c->delta.rz = (random() / rm) * (0.2) - 0.1;
+}
+
+static void
+update_cube(struct cube *c) {
+   c->c.x += c->delta.x;
+   c->c.y += c->delta.y;
+   c->c.z += c->delta.z;
+   c->c.rx += c->delta.rx;
+   c->c.ry += c->delta.ry;
+   c->c.rz += c->delta.rz;
+   if (c->c.z > 50.0) {
+      init_cube(c, 3.0, N_CUBES_FAR);
+   }
+}
+
+static void
+draw_a_cube(struct cube *c, GLfloat *mat) {
+   draw_cube(c->c.x, c->c.y, c->c.z, c->c.rx, c->c.ry, c->c.rz, 1.0, mat);
+}
+
+static void
+print_cube(struct cube *c) {
+   struct cubeset *cs;
+   cs = &c->c;
+   printf("c:[x: %f, y:%f, z:%f, rx:%f, ry:%f, rz:%f]\n", cs->x, cs->y, cs->z, cs->rx, cs->ry, cs->rz);
+   cs = &c->delta;
+   printf("c:[x: %f, y:%f, z:%f, rx:%f, ry:%f, rz:%f]\n", cs->x, cs->y, cs->z, cs->rx, cs->ry, cs->rz);
+}
+
+struct cube cubes[N_CUBES];
 
 static void
 draw(void)
 {
-   GLfloat mat[16], trans[16], rotz[16], roty[16], rotx[16], scale[16], projection[16];
+   GLfloat mat[16], projection[16];
 
+   struct cube c;
    /* Set modelview/projection matrix */
-   make_unity_matrix(mat);
-   make_translation_matrix(0.0, 0.0, view_transz, trans);
-   make_x_rot_matrix(view_rotx, rotx);
-   make_y_rot_matrix(view_roty, roty);
-   make_z_rot_matrix(view_rotz, rotz);
-   make_scale_matrix(view_scale, view_scale, view_scale, scale);
+   matrix_make_unity(mat);
+   matrix_rotate_x(view_rotx, mat);
+   matrix_rotate_y(view_roty, mat);
+   matrix_rotate_z(view_rotz, mat);
+   matrix_translate(0.0, 0.0, view_transz, mat);
+   matrix_scale(view_scale, view_scale, view_scale, mat);
 
-   make_projection_matrix(0.9, projection);
+   matrix_make_projection(0.9, projection);
 
-   mul_matrix(mat, rotx, mat);
-   mul_matrix(mat, roty, mat);
-   mul_matrix(mat, rotz, mat);
-   mul_matrix(mat, scale, mat);
-   mul_matrix(mat, trans, mat);
-
-   print_matrix(mat);
+   //print_matrix(mat);
 
    glUniformMatrix4fv(u_projection, 1, GL_FALSE, projection);
 
@@ -243,6 +305,15 @@ draw(void)
 
    start_cube();
 
+   int a;
+   for (a = 0; a < N_CUBES; a++) {
+//      print_cube(&cubes[a]);
+      update_cube(&cubes[a]);
+      draw_a_cube(&cubes[a], mat);
+      printf("a=%d\n",a);
+      print_cube(&cubes[a]);
+   }
+   /*
    GLfloat i,j,k;
    #define LOW -4.0
    #define HIGH 4.0
@@ -257,7 +328,7 @@ draw(void)
    #undef LOW
    #undef HIGH
    #undef STEP
-   
+   */
    end_cube();
    #undef N
 }
@@ -494,77 +565,102 @@ make_x_window(Display *x_dpy, EGLDisplay egl_dpy,
 }
 
 
+static int
+handle_input(XEvent *event) {
+   int state = 0;
+   switch (event->type) {
+   case Expose:
+      state = 1;
+      break;
+   case ConfigureNotify:
+      reshape(event->xconfigure.width, event->xconfigure.height);
+      break;
+   case KeyPress:
+      {
+         char buffer[10];
+         int r, code;
+         code = XLookupKeysym(&event->xkey, 0);
+         if (code == XK_Left) {
+            view_roty += 5.0;
+         }
+         else if (code == XK_Right) {
+            view_roty -= 5.0;
+         }
+         else if (code == XK_Up) {
+            view_rotx += 5.0;
+         }
+         else if (code == XK_Down) {
+            view_rotx -= 5.0;
+         }
+         else if (code == XK_Page_Up) {
+            view_rotz += 5.0;
+         } 
+         else if (code == XK_Page_Down) {
+            view_rotz -= 5.0;
+         }
+         else if (code == XK_End) {
+            view_transz -= 0.1;
+         } 
+         else if (code == XK_Home) {
+            view_transz += 0.1;
+         }
+         else if (code == XK_F1) {
+            view_scale /= 2.0;
+         } 
+         else if (code == XK_F2) {
+            view_scale *= 2.0;
+         }
+         else {
+            r = XLookupString(&event->xkey, buffer, sizeof(buffer),
+                              NULL, NULL);
+            if (buffer[0] == 27) {
+               /* escape */
+               return 2;
+            }
+            if (buffer[0] == 32) {
+               return 3;
+            }
+         }
+      }
+      state = 1;
+      break;
+   default:
+      ; /*no-op*/
+   }
+   return state;
+}
+
 static void
 event_loop(Display *dpy, Window win,
            EGLDisplay egl_dpy, EGLSurface egl_surf)
 {
-   while (1) {
       int redraw = 0;
+ while (1) {
       XEvent event;
-
-      XNextEvent(dpy, &event);
-
-      switch (event.type) {
-      case Expose:
-         redraw = 1;
-         break;
-      case ConfigureNotify:
-         reshape(event.xconfigure.width, event.xconfigure.height);
-         break;
-      case KeyPress:
-         {
-            char buffer[10];
-            int r, code;
-            code = XLookupKeysym(&event.xkey, 0);
-            if (code == XK_Left) {
-               view_roty += 5.0;
-            }
-            else if (code == XK_Right) {
-               view_roty -= 5.0;
-            }
-            else if (code == XK_Up) {
-               view_rotx += 5.0;
-            }
-            else if (code == XK_Down) {
-               view_rotx -= 5.0;
-            }
-            else if (code == XK_Page_Up) {
-               view_rotz += 5.0;
-            } 
-            else if (code == XK_Page_Down) {
-               view_rotz -= 5.0;
-            }
-            else if (code == XK_End) {
-               view_transz -= 0.1;
-            } 
-            else if (code == XK_Home) {
-               view_transz += 0.1;
-            }
-            else if (code == XK_F1) {
-               view_scale /= 2.0;
-            } 
-            else if (code == XK_F2) {
-               view_scale *= 2.0;
-            }
-            else {
-               r = XLookupString(&event.xkey, buffer, sizeof(buffer),
-                                 NULL, NULL);
-               if (buffer[0] == 27) {
-                  /* escape */
-                  return;
-               }
-            }
+      if (XPending(dpy) > 0) {
+         XNextEvent(dpy, &event);
+         switch(handle_input(&event)) {
+            case 1:
+                redraw = 1;
+                break;
+            case 2:
+                return;
+            case 3:
+               redraw = 3;
+               break;
+            default:
+                break;
          }
-         redraw = 1;
-         break;
-      default:
-         ; /*no-op*/
       }
 
-      if (redraw) {
-         draw();
-         eglSwapBuffers(egl_dpy, egl_surf);
+      if (!redraw) {
+         wait_sleep();
       }
+      if (redraw == 1) {
+         view_rotx += 0.1;
+         draw();
+      }
+      eglSwapBuffers(egl_dpy, egl_surf);
    }
 }
 
@@ -662,7 +758,12 @@ main(int argc, char *argv[])
    glDepthRangef(0.2f, 0.99f);
    glClearDepthf(0.999f);
 
-   
+   for (i = 0; i < N_CUBES; i++) {
+      print_cube(&cubes[i]);
+      init_cube(&cubes[i], 3.0, N_CUBES_FAR);
+      print_cube(&cubes[i]);
+   }
+
    /* Set initial projection/viewing transformation.
     * We can't be sure we'll get a ConfigureNotify event when the window
     * first appears.
