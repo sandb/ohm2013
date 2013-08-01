@@ -131,7 +131,8 @@ mul_matrix(GLfloat *prod, const GLfloat *a, const GLfloat *b)
 }
 
 void
-print_matrix(GLfloat *m) {
+print_matrix(GLfloat *m) 
+{
     printf("{\n");
     int i = 0;
     for (i = 0; i < 4; i++) {
@@ -140,9 +141,8 @@ print_matrix(GLfloat *m) {
     printf("}\n");
 }
 
-
-static void
-draw(void)
+void
+start_cube() 
 {
    #define N 14
    #define A {  1, -1,  1 }
@@ -160,6 +160,56 @@ draw(void)
    static const GLfloat colors[14][3] = {
       X, X, X, X, X, X, X, X, X, X, X, X, X, X
    };
+
+   glVertexAttribPointer(attr_pos, 3, GL_FLOAT, GL_FALSE, 0, verts);
+   glVertexAttribPointer(attr_color, 3, GL_FLOAT, GL_FALSE, 0, colors);
+
+   glEnableVertexAttribArray(attr_pos);
+   glEnableVertexAttribArray(attr_color);
+}
+
+void
+draw_cube(GLfloat x, GLfloat y, GLfloat z, GLfloat rx, GLfloat ry, GLfloat rz, GLfloat scale, GLfloat *m) 
+{
+   GLfloat mat[16];
+   memcpy(mat, m, sizeof(mat));
+
+   GLfloat trans[16];
+   make_translation_matrix(x, y, z, trans);
+   mul_matrix(mat, trans, mat);
+
+   GLfloat mrx[16];
+   make_x_rot_matrix(rx, mrx);
+   mul_matrix(mat, mrx, mat);
+
+   GLfloat mry[16];
+   make_y_rot_matrix(ry, mry);
+   mul_matrix(mat, mry, mat);
+
+   GLfloat mrz[16];
+   make_z_rot_matrix(rz, mrz);
+   mul_matrix(mat, mrz, mat);
+
+   GLfloat mrs[16];
+   make_scale_matrix(scale, scale, scale, mrs);
+   mul_matrix(mat, mrs, mat);
+
+   glUniformMatrix4fv(u_matrix, 1, GL_FALSE, mat);
+   
+   glDrawArrays(GL_TRIANGLE_STRIP, 0, N);
+}
+
+void 
+end_cube() 
+{
+   glDisableVertexAttribArray(attr_pos);
+   glDisableVertexAttribArray(attr_color);
+}
+
+
+static void
+draw(void)
+{
    GLfloat mat[16], trans[16], rotz[16], roty[16], rotx[16], scale[16], projection[16];
 
    /* Set modelview/projection matrix */
@@ -169,6 +219,7 @@ draw(void)
    make_y_rot_matrix(view_roty, roty);
    make_z_rot_matrix(view_rotz, rotz);
    make_scale_matrix(view_scale, view_scale, view_scale, scale);
+
    make_projection_matrix(0.9, projection);
 
    mul_matrix(mat, rotx, mat);
@@ -176,25 +227,31 @@ draw(void)
    mul_matrix(mat, rotz, mat);
    mul_matrix(mat, scale, mat);
    mul_matrix(mat, trans, mat);
+
    print_matrix(mat);
-   
-   glUniformMatrix4fv(u_matrix, 1, GL_FALSE, mat);
+
    glUniformMatrix4fv(u_projection, 1, GL_FALSE, projection);
-   
+
    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-   {
-      glVertexAttribPointer(attr_pos, 3, GL_FLOAT, GL_FALSE, 0, verts);
-      glVertexAttribPointer(attr_color, 3, GL_FLOAT, GL_FALSE, 0, colors);
+   start_cube();
 
-      glEnableVertexAttribArray(attr_pos);
-      glEnableVertexAttribArray(attr_color);
-
-      glDrawArrays(GL_TRIANGLE_STRIP, 0, N);
-
-      glDisableVertexAttribArray(attr_pos);
-      glDisableVertexAttribArray(attr_color);
+   GLfloat i,j,k;
+   #define LOW -10.0
+   #define HIGH 10.0
+   #define STEP 3.0
+   for (i = LOW; i < HIGH; i += STEP) {
+       for (j = LOW; j < HIGH; j += STEP) {
+          for (k = LOW+30.0; k < HIGH+30.0; k += STEP) {
+             draw_cube(i, j, k, 0.0, 0.0, 0.0, 1.0, mat);
+          }
+       }
    }
+   #undef LOW
+   #undef HIGH
+   #undef STEP
+   
+   end_cube();
    #undef N
 }
 
