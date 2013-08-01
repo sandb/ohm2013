@@ -8,6 +8,7 @@
 #include <X11/keysym.h>
 #include <GLES2/gl2.h>  /* use OpenGL ES 2.x */
 #include <EGL/egl.h>
+#include <time.h>
 
 #define FLOAT_TO_FIXED(X)   ((X) * 65535.0)
 
@@ -18,6 +19,14 @@ static GLint u_projection = -1;
 
 static GLint attr_pos = 0, attr_color = 1;
 
+static void
+wait_sleep() {
+   struct timespec ts;
+   /* Delay for a bit */
+   ts.tv_sec = 0;
+   ts.tv_nsec = 1000;
+   nanosleep (&ts, NULL);
+}
 
 static void
 matrix_multiply(GLfloat *prod, const GLfloat *a, const GLfloat *b)
@@ -202,12 +211,26 @@ end_cube()
    glDisableVertexAttribArray(attr_color);
 }
 
+struct cubeset {
+    GLfloat x;
+    GLfloat y;
+    GLfloat z;
+    GLfloat rx;
+    GLfloat ry;
+    GLfloat rz;
+};
+
+struct cube {
+    struct cubeset c, delta;
+};
+
 
 static void
 draw(void)
 {
    GLfloat mat[16], trans[16], rotz[16], roty[16], rotx[16], scale[16], projection[16];
 
+   struct cube c;
    /* Set modelview/projection matrix */
    matrix_make_unity(mat);
    matrix_rotate_x(view_rotx, mat);
@@ -479,76 +502,93 @@ make_x_window(Display *x_dpy, EGLDisplay egl_dpy,
 }
 
 
+static int
+handle_input(XEvent *event) {
+   int state = 0;
+   switch (event->type) {
+   case Expose:
+      state = 1;
+      break;
+   case ConfigureNotify:
+      reshape(event->xconfigure.width, event->xconfigure.height);
+      break;
+   case KeyPress:
+      {
+         char buffer[10];
+         int r, code;
+         code = XLookupKeysym(&event->xkey, 0);
+         if (code == XK_Left) {
+            view_roty += 5.0;
+         }
+         else if (code == XK_Right) {
+            view_roty -= 5.0;
+         }
+         else if (code == XK_Up) {
+            view_rotx += 5.0;
+         }
+         else if (code == XK_Down) {
+            view_rotx -= 5.0;
+         }
+         else if (code == XK_Page_Up) {
+            view_rotz += 5.0;
+         } 
+         else if (code == XK_Page_Down) {
+            view_rotz -= 5.0;
+         }
+         else if (code == XK_End) {
+            view_transz -= 0.1;
+         } 
+         else if (code == XK_Home) {
+            view_transz += 0.1;
+         }
+         else if (code == XK_F1) {
+            view_scale /= 2.0;
+         } 
+         else if (code == XK_F2) {
+            view_scale *= 2.0;
+         }
+         else {
+            r = XLookupString(&event->xkey, buffer, sizeof(buffer),
+                              NULL, NULL);
+            if (buffer[0] == 27) {
+               /* escape */
+               return 2;
+            }
+         }
+      }
+      state = 1;
+      break;
+   default:
+      ; /*no-op*/
+   }
+   return state;
+}
+
 static void
 event_loop(Display *dpy, Window win,
            EGLDisplay egl_dpy, EGLSurface egl_surf)
 {
-   while (1) {
+ while (1) {
       int redraw = 0;
       XEvent event;
-
-      XNextEvent(dpy, &event);
-
-      switch (event.type) {
-      case Expose:
-         redraw = 1;
-         break;
-      case ConfigureNotify:
-         reshape(event.xconfigure.width, event.xconfigure.height);
-         break;
-      case KeyPress:
-         {
-            char buffer[10];
-            int r, code;
-            code = XLookupKeysym(&event.xkey, 0);
-            if (code == XK_Left) {
-               view_roty += 5.0;
-            }
-            else if (code == XK_Right) {
-               view_roty -= 5.0;
-            }
-            else if (code == XK_Up) {
-               view_rotx += 5.0;
-            }
-            else if (code == XK_Down) {
-               view_rotx -= 5.0;
-            }
-            else if (code == XK_Page_Up) {
-               view_rotz += 5.0;
-            } 
-            else if (code == XK_Page_Down) {
-               view_rotz -= 5.0;
-            }
-            else if (code == XK_End) {
-               view_transz -= 0.1;
-            } 
-            else if (code == XK_Home) {
-               view_transz += 0.1;
-            }
-            else if (code == XK_F1) {
-               view_scale /= 2.0;
-            } 
-            else if (code == XK_F2) {
-               view_scale *= 2.0;
-            }
-            else {
-               r = XLookupString(&event.xkey, buffer, sizeof(buffer),
-                                 NULL, NULL);
-               if (buffer[0] == 27) {
-                  /* escape */
-                  return;
-               }
-            }
+      if (XPending(dpy) > 0) {
+         XNextEvent(dpy, &event);
+         switch(handle_input(&event)) {
+            case 1:
+                redraw = 1;
+                break;
+            case 2:
+                return;
+            default:
+                break;
          }
-         redraw = 1;
-         break;
-      default:
-         ; /*no-op*/
       }
 
       if (redraw) {
          draw();
          eglSwapBuffers(egl_dpy, egl_surf);
+      } else {
+         wait_sleep();
       }
    }
 }
