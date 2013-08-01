@@ -153,12 +153,19 @@ start_cube()
    #define F {  1,  1, -1 }
    #define G {  1,  1,  1 }
    #define H { -1,  1,  1 }
-   #define X { 0.5, 0.5, 0.5 }
+   #define c { 0.0, 0.0, 0.0 }
+   #define Rc { 1.0, 0.0, 0.0 }
+   #define Gc { 0.0, 1.0, 0.0 }
+   #define Bc { 0.0, 0.0, 1.0 }
+   #define RGc { 1.0, 1.0, 0.0 }
+   #define RBc { 1.0, 0.0, 1.0 }
+   #define GBc { 0.0, 1.0, 1.0 }
+   #define RGBc { 1.0, 1.0, 1.0 }
    static const GLfloat verts[14][3] = {
       A, B, C, D, E, B, F, G, E, H, C, G, A, B
    };
    static const GLfloat colors[14][3] = {
-      X, X, X, X, X, X, X, X, X, X, X, X, X, X
+      c, Rc, Bc, RBc, RGc, Rc, Gc, GBc, RGc, RGBc, Bc, GBc, c, Rc
    };
 
    glVertexAttribPointer(attr_pos, 3, GL_FLOAT, GL_FALSE, 0, verts);
@@ -237,12 +244,12 @@ draw(void)
    start_cube();
 
    GLfloat i,j,k;
-   #define LOW -10.0
-   #define HIGH 10.0
-   #define STEP 3.0
+   #define LOW -4.0
+   #define HIGH 4.0
+   #define STEP 2.0
    for (i = LOW; i < HIGH; i += STEP) {
        for (j = LOW; j < HIGH; j += STEP) {
-          for (k = LOW+30.0; k < HIGH+30.0; k += STEP) {
+          for (k = HIGH+10.0; k > LOW+10.0; k -= STEP) {
              draw_cube(i, j, k, 0.0, 0.0, 0.0, 1.0, mat);
           }
        }
@@ -271,8 +278,8 @@ create_shaders(void)
       "varying vec4 v_color;\n"
       "varying vec4 position;\n"
       "void main() {\n"
-      "   if( position.z > 0.5 && position.z/position.w > 0.5 ){\n"
-      "       gl_FragColor = position;\n"
+      "   if( position.z > 0.5 && position.z/position.w > 1.0 ){\n"
+      "       gl_FragColor = v_color;\n"
       "   }else{discard;}\n"
       "}\n";
    static const char *vertShaderText =
@@ -285,10 +292,8 @@ create_shaders(void)
       "void main() {\n"
       "   vec4 p = modelviewProjection * pos;\n"
       "   vec4 p2 = projectionMatrix * p;\n"
-      "   gl_Position = p2 / p2.w;\n"
-      "   v_color.r = 1.0 - p2.z;\n"
-      "   v_color.g = 1.0 - p2.z;\n"
-      "   v_color.b = 1.0 - p2.z;\n"
+      "   gl_Position = p2;\n"
+      "   v_color = color;\n"
       "   position = p;\n"
       "}\n";
 
@@ -359,8 +364,8 @@ init(void)
    assert(p);
 #endif
 
-   glClearColor(0.4, 0.4, 0.4, 0.0);
-
+   glClearColor(0.0, 0.0, 0.0, 0.0);
+//   glClearDepth(1.0f);
    create_shaders();
 }
 
@@ -378,10 +383,10 @@ make_x_window(Display *x_dpy, EGLDisplay egl_dpy,
               EGLSurface *surfRet)
 {
    static const EGLint attribs[] = {
-      EGL_RED_SIZE, 1,
-      EGL_GREEN_SIZE, 1,
-      EGL_BLUE_SIZE, 1,
-      EGL_DEPTH_SIZE, 1,
+      EGL_RED_SIZE, 8,
+      EGL_GREEN_SIZE, 8,
+      EGL_BLUE_SIZE, 8,
+      EGL_DEPTH_SIZE, 24,
       EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
       EGL_NONE
    };
@@ -409,7 +414,7 @@ make_x_window(Display *x_dpy, EGLDisplay egl_dpy,
       printf("Error: couldn't get an EGL visual config\n");
       exit(1);
    }
-
+ 
    assert(config);
    assert(num_configs > 0);
 
@@ -650,10 +655,14 @@ main(int argc, char *argv[])
    }
 
    init();
-
    glEnable(GL_CULL_FACE);
    glEnable(GL_DEPTH_TEST);
+   glDepthMask(GL_TRUE);
+   glDepthFunc(GL_LEQUAL);
+   glDepthRangef(0.2f, 0.99f);
+   glClearDepthf(0.999f);
 
+   
    /* Set initial projection/viewing transformation.
     * We can't be sure we'll get a ConfigureNotify event when the window
     * first appears.
