@@ -22,6 +22,19 @@ static GLint u_projection = -1;
 
 static GLint attr_pos = 0, attr_color = 1;
 
+struct cubeset {
+    GLfloat x;
+    GLfloat y;
+    GLfloat z;
+    GLfloat rx;
+    GLfloat ry;
+    GLfloat rz;
+};
+
+struct cube {
+    struct cubeset c, delta;
+};
+
 static void
 wait_sleep() {
    struct timespec ts;
@@ -163,10 +176,11 @@ print_matrix(GLfloat *m)
     printf("}\n");
 }
 
+#define N 14
+
 void
 start_cube() 
 {
-   #define N 14
    #define A {  1, -1,  1 }
    #define B {  1, -1, -1 }
    #define C { -1, -1,  1 }
@@ -183,13 +197,29 @@ start_cube()
    #define RBc { 1.0, 0.0, 1.0 }
    #define GBc { 0.0, 1.0, 1.0 }
    #define RGBc { 1.0, 1.0, 1.0 }
-   static const GLfloat verts[14][3] = {
+   static const GLfloat verts[N][3] = {
       A, B, C, D, E, B, F, G, E, H, C, G, A, B
    };
-   static const GLfloat colors[14][3] = {
+   static const GLfloat colors[N][3] = {
       c, Rc, Bc, RBc, RGc, Rc, Gc, GBc, RGc, RGBc, Bc, GBc, c, Rc
    };
 
+   #undef A
+   #undef B
+   #undef C
+   #undef D
+   #undef E
+   #undef F
+   #undef G
+   #undef H
+   #undef c
+   #undef Rc
+   #undef Gc
+   #undef Bc
+   #undef RGc
+   #undef RBc
+   #undef GBc
+   #undef RGBc
    glVertexAttribPointer(attr_pos, 3, GL_FLOAT, GL_FALSE, 0, verts);
    glVertexAttribPointer(attr_color, 3, GL_FLOAT, GL_FALSE, 0, colors);
 
@@ -220,20 +250,6 @@ end_cube()
    glDisableVertexAttribArray(attr_pos);
    glDisableVertexAttribArray(attr_color);
 }
-
-struct cubeset {
-    GLfloat x;
-    GLfloat y;
-    GLfloat z;
-    GLfloat rx;
-    GLfloat ry;
-    GLfloat rz;
-};
-
-struct cube {
-    struct cubeset c, delta;
-};
-
 
 static void 
 init_cube(struct cube *c, GLfloat minz, GLfloat maxz) {
